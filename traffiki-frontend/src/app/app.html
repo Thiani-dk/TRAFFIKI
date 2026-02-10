@@ -1,0 +1,130 @@
+<div class="min-h-screen bg-road-black p-6 font-digital text-gray-300">
+  
+  <header class="mb-8 border-b-2 border-road-yellow pb-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-4xl font-bold text-road-yellow tracking-widest">TRAFFIKI <span class="text-sm text-white">v1.1</span></h1>
+      <p class="text-xs text-gray-500 mt-1">FLEET COMMAND CENTER</p>
+    </div>
+    
+    <button (click)="onSimulate()" 
+      class="bg-road-yellow text-black font-bold py-2 px-6 hover:bg-white transition-colors uppercase border-2 border-yellow-600 cursor-pointer">
+      ⚡ Reset / Simulate
+    </button>
+  </header>
+
+  <div class="grid grid-cols-3 gap-4 mb-8">
+    <div class="bg-gray-900 p-4 border-l-4 border-digital-green">
+      <h3 class="text-xs text-gray-500 uppercase">Active Fleet</h3>
+      <p class="text-3xl font-bold text-white">{{ activeCount }} <span class="text-gray-600 text-lg">/ 200</span></p>
+    </div>
+    <div class="bg-gray-900 p-4 border-l-4 border-digital-red">
+      <h3 class="text-xs text-gray-500 uppercase">Unroadworthy (Garage)</h3>
+      <p class="text-3xl font-bold text-white">{{ unroadworthyCount }} <span class="text-gray-600 text-lg">/ 50</span></p>
+    </div>
+    <div class="bg-gray-900 p-4 border-l-4 border-digital-amber">
+      <h3 class="text-xs text-gray-500 uppercase">Awaiting Repair</h3>
+      <p class="text-3xl font-bold text-white">{{ repairCount }} <span class="text-sm text-digital-amber">Vehicles</span></p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <div class="lg:col-span-2">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl text-digital-green font-bold uppercase">Active Vehicles</h2>
+        <div class="relative w-1/2">
+          <input [(ngModel)]="searchText" 
+                 placeholder="SEARCH: PLATE, LICENSE, MAINTENANCE..." 
+                 class="w-full bg-gray-900 border border-gray-700 p-2 text-sm text-white focus:border-road-yellow outline-none uppercase placeholder-gray-600">
+        </div>
+      </div>
+
+      <div *ngIf="searchError" class="mb-4 bg-red-900/20 border border-red-500 text-red-400 p-2 text-sm">
+        ⚠ {{ searchError }}
+      </div>
+
+      <div class="space-y-3 h-[600px] overflow-y-auto pr-2">
+        <div *ngFor="let v of filteredActiveVehicles" 
+             class="bg-gray-900 border border-gray-800 p-4 hover:border-digital-green transition-colors flex justify-between items-start group">
+          
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <span class="text-lg font-bold text-white">{{ v.number_plate }}</span>
+              <span class="text-xs bg-gray-800 px-2 py-0.5 rounded text-gray-400">{{ v.vehicle_type }}</span>
+              <span *ngIf="v.maintenance_due" class="text-xs bg-red-900 text-red-200 px-2 py-0.5 animate-pulse">MAINTENANCE</span>
+              <span *ngIf="v.license_expired" class="text-xs bg-amber-900 text-amber-200 px-2 py-0.5">LICENSE</span>
+            </div>
+            <p class="text-sm text-gray-500 uppercase truncate w-[400px]">COND: {{ v.condition_report }}</p>
+          </div>
+
+          <div class="text-right">
+            <p class="text-digital-green font-bold">KES {{ v.revenue | number }}</p>
+            <button (click)="onWriteOff(v.id)" class="text-xs border border-red-900 text-red-500 px-2 py-1 hover:bg-red-900 hover:text-white mt-2 opacity-0 group-hover:opacity-100 transition-all uppercase cursor-pointer">
+              [ Report Breakdown ]
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gray-900/50 border border-gray-800 p-4">
+      
+      <div class="flex flex-col mb-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl text-digital-red font-bold uppercase">
+            Garage Queue 
+          </h2>
+          
+          <button *ngIf="!hasFixedCars && hasBrokenCars" 
+                  (click)="downloadGarageReport()" 
+                  class="bg-digital-red hover:bg-white hover:text-red-900 text-xs text-white font-bold px-3 py-2 transition-colors uppercase flex items-center gap-2 animate-pulse cursor-pointer">
+            📄 Download Budget
+          </button>
+        </div>
+
+        <p *ngIf="hasFixedCars" class="text-xs text-digital-green mt-2 text-right">
+          ⚠ Move {{ (unroadworthyVehicles.length - repairCount) }} Fixed vehicles to Active to unlock report.
+        </p>
+        
+        <p class="text-xs text-gray-500 mt-1 text-right">{{ 50 - unroadworthyCount }} Slots Free</p>
+      </div>
+
+      <div class="space-y-3 h-[600px] overflow-y-auto pr-2">
+        <div *ngFor="let v of unroadworthyVehicles" 
+             class="p-4 border border-dashed transition-all relative"
+             [ngClass]="{
+               'border-digital-green bg-green-900/10': v.unroadworthy_sub_status === 'Fixed',
+               'border-digital-red bg-red-900/10': v.unroadworthy_sub_status === 'Fixer-Upper'
+             }">
+          
+          <div class="flex justify-between mb-2">
+            <span class="font-bold text-white">{{ v.number_plate }}</span>
+            <span class="text-xs font-bold px-2 py-1 rounded uppercase"
+                  [ngClass]="v.unroadworthy_sub_status === 'Fixed' ? 'bg-green-600 text-black' : 'bg-red-600 text-white'">
+              {{ v.unroadworthy_sub_status }}
+            </span>
+          </div>
+          
+          <p class="text-xs text-gray-400 mb-4">{{ v.condition_report }}</p>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button *ngIf="v.unroadworthy_sub_status === 'Fixed'" 
+                    (click)="moveToActive(v.id)"
+                    class="col-span-2 bg-digital-green text-black text-xs font-bold py-2 hover:bg-white cursor-pointer">
+              MOVE TO ACTIVE
+            </button>
+
+            <button *ngIf="v.unroadworthy_sub_status === 'Fixer-Upper'"
+                    (click)="permanentDelete(v.id)"
+                    class="col-span-2 border border-red-800 text-red-500 text-xs py-2 hover:bg-red-900 cursor-pointer">
+              SCRAP VEHICLE (DELETE)
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
